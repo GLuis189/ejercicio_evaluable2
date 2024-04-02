@@ -334,12 +334,57 @@ int main(){
 
 */
 
+void tratar_peticion(int sockfd){
+    char op;
+    int32_t a, b, res;
+    int err;
+
+    err = recvMessage(sockfd, (char *)&op, sizeof(char));   // receive the operation
+    if (err == -1) {
+        printf("Error in reception\n");
+        close(sockfd);
+        return;
+    }
+    err = recvMessage(sockfd, (char *)&a, sizeof(int32_t)); // receive a
+    if (err == -1) {
+        printf("Error in reception\n");
+        close(sockfd);
+        return;
+    }
+    err = recvMessage(sockfd, (char *)&b, sizeof(int32_t)); // receive b
+    if (err == -1) {
+        printf("Error in reception\n");
+        close(sockfd);
+        return;
+    }
+    a = ntohl(a);
+    b = ntohl(b);
+
+    if (op == 0) // process the request
+        res = a + b;
+    else
+        res = a - b;
+
+    res = htonl(res);
+    err = sendMessage(sockfd, (char *)&res, sizeof(int32_t));  // send the result
+    if (err == -1) {
+        printf("Error in sending\n");
+        close(sockfd);
+        return;
+    }
+
+    close(sockfd); // close the connection
+}
+
+
 int main(int argc, char *argv[])
 {
     struct sockaddr_in server_addr, client_addr;
     socklen_t size;
     int sd, sc;
     int err;
+    int op;
+
 
     // Crear el socket
     if ((sd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
