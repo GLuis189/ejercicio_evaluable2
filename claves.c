@@ -41,18 +41,18 @@ int init(){
 	// se establece la conexión
    	err = connect(sd, (struct sockaddr *) &server_addr,  sizeof(server_addr));
 	if (err == -1) {
-		printf("Error en connect\n");
+		printf("Error en connect init\n");
 		return -1;
 	}
     op = htonl(INIT);
     err = sendMessage(sd, (char *) &op, sizeof(char));  // envía la operacion
 	if (err == -1){
-		printf("Error en envio\n");
+		printf("Error en envio init\n");
 		return -1;
 	};
     err = recvMessage(sd, (char *) &res, sizeof(int32_t));     // recibe la respuesta
 	if (err == -1){
-		printf("Error en recepcion\n");
+		printf("Error en recepcion init\n");
 		return -1;
 	};
     close(sd);
@@ -89,39 +89,40 @@ int set_value(int key, char *value, int N_value, double *V_value){
     // se establece la conexión
     err = connect(sd, (struct sockaddr *) &server_addr,  sizeof(server_addr));
     if (err == -1) {
-        printf("Error en connect\n");
+        printf("Error en connect set\n");
         return -1;
     }
     op = htonl(SET);
     err = sendMessage(sd, (char *) &op, sizeof(char));  // envía la operacion
     if (err == -1){
-        printf("Error en envio\n");
+        printf("Error en envio set\n");
         return -1;
     };
     key = htonl(key);
     err = sendMessage(sd, (char *) &key, sizeof(int32_t));  // envía la clave
     if (err == -1){
-        printf("Error en envio\n");
+        printf("Error en envio key\n");
         return -1;
     };
     err = sendMessage(sd, value, 256);  // envía el valor 1
     if (err == -1){
-        printf("Error en envio\n");
+        printf("Error en envio value\n");
         return -1;
     };
     N_value = htonl(N_value);
     err = sendMessage(sd, (char *) &N_value, sizeof(int32_t));  // envía la dimensión del vector
     if (err == -1){
-        printf("Error en envio\n");
+        printf("Error en envio N\n");
         return -1;
     };
     for(int i; i < N_value; i++){
         err = sendMessage(sd, (char *) &V_value[i], sizeof(char));  // envía el vector
-    if (err == -1){
-        printf("Error en envio\n");
-        return -1;
-    };
+        if (err == -1){
+            printf("Error en envio %d \n", i);
+            return -1;
+        };
     }
+    fflush(stdout);
     
     err = recvMessage(sd, (char *) &res, sizeof(int32_t));     // recibe la respuesta
     if (err == -1){
