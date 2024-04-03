@@ -128,6 +128,27 @@ int r_set_value(int key, char *value1, int N_value, double *V_value){
     return 0;
 }
 
+int r_get_value(int key, char *value1, int *N_value, double *V_value){
+    printf("Obteniendo valor\n");
+    pthread_mutex_lock(&mutex_tuplas);
+    pthread_mutex_lock(&mutex_keys);
+    for (int i = 0; i < numTuplas; i++) {
+        if (keys[i] == key) {
+            strcpy(value1, tuplas[i].valor1);
+            *N_value = tuplas[i].N;
+            for (int j = 0; j < *N_value; j++) {
+                V_value[j] = tuplas[i].vector[j];
+            }
+            pthread_mutex_unlock(&mutex_keys);
+            pthread_mutex_unlock(&mutex_tuplas);
+            return 0;
+        }
+    }
+    pthread_mutex_unlock(&mutex_keys);
+    pthread_mutex_unlock(&mutex_tuplas);
+    return -1;
+}
+
 void tratar_peticion(int * sockfd){
     char op;
     int err;
@@ -188,9 +209,9 @@ void tratar_peticion(int * sockfd){
             case 1:
                 res = r_set_value(key, value1, N_value, V_value);
                 break;
-            // case GET:
-            //     res = r_get_value(key, value1, &N_value, V_value);
-            //     break;
+            case GET:
+                res = r_get_value(key, value1, &N_value, V_value);
+                break;
             // case MODIFY:
             //     res = r_modify_value(key, value1, N_value, V_value);
             //     break;
