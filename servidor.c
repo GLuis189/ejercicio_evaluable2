@@ -99,17 +99,7 @@ int r_init(){
 }
 
 int r_set_value(int key, char *value1, int N_value, double *V_value){
-    printf("Seteando valor\n");
-    pthread_mutex_lock(&mutex_tuplas);
-    pthread_mutex_lock(&mutex_keys);
-    for (int i = 0; i < numTuplas; i++) {
-        if (keys[i] == key) {
-            pthread_mutex_unlock(&mutex_keys);
-            pthread_mutex_unlock(&mutex_tuplas);
-            return -1;
-        }
-    }
-
+    printf("Seteado valor\n");
     Tupla t;
     t.clave = key;
     strcpy(t.valor1, value1);
@@ -119,11 +109,21 @@ int r_set_value(int key, char *value1, int N_value, double *V_value){
         t.vector[i] = V_value[i];
     }
 
+    pthread_mutex_lock(&mutex_tuplas);
+    pthread_mutex_lock(&mutex_keys);
+    for (int i = 0; i < numTuplas; i++) {
+        if (keys[i] == key) {
+            pthread_mutex_unlock(&mutex_keys);
+            pthread_mutex_unlock(&mutex_tuplas);
+            return -1;
+        }
+    }
     tuplas[numTuplas] = t;
     keys[numTuplas] = key;
     numTuplas++;
     pthread_mutex_unlock(&mutex_keys);
     pthread_mutex_unlock(&mutex_tuplas);
+
     escribirTuplas();
     return 0;
 }
@@ -134,7 +134,7 @@ void tratar_peticion(int * sockfd){
     int s_local;
 
     int32_t key, N_value, res;
-    char value1[MAX]; 
+    char value1[256]; 
     
     pthread_mutex_lock(&mutex);
     s_local = (* (int *)sockfd);
@@ -142,63 +142,69 @@ void tratar_peticion(int * sockfd){
     pthread_cond_signal(&cond);
     pthread_mutex_unlock(&mutex);
 
-    err = sendMessage(s_local, (char *) &op, sizeof(char));  // envía la operacion
+    err = recvMessage(s_local, (char *) &op, sizeof(char));  // envía la operacion
     if (err == -1) {
         printf("Error in reception op\n");
         close(s_local);
         return;
     }
-    if (op == INIT){
+    printf("Operación: %d\n", op);
+    if (op == 0){
         res = r_init();
     }
     else{
-        err = recvMessage(s_local, (char *)&key, sizeof(char));
-    if (err == -1) {
-        printf("Error in reception\n");
-        close(s_local);
-        return;
-    } 
-    err = recvMessage(s_local, (char *)&value1, sizeof(char)*MAX);
-    if (err == -1) {
-        printf("Error in reception\n");
-        close(s_local);
-        return;
-    }
-    err = recvMessage(s_local, (char *)&N_value, sizeof(int));
-    if (err == -1) {
-        printf("Error in reception\n");
-        close(s_local);
-        return;
-    }
-    double* V_value = (double *)malloc(N_value * sizeof(double));
-    for (int i = 0; i < N_value; i++) {
-        err = recvMessage(s_local, (char *)&V_value[i], sizeof(double));
+        err = recvMessage(s_local, (char *)&key, sizeof(int32_t));
         if (err == -1) {
             printf("Error in reception\n");
             close(s_local);
             return;
         }
-    }
-    switch (op){
-        case SET:
-            res = r_set_value(key, value1, N_value, V_value);
-            break;
-        // case GET:
-        //     res = r_get_value(key, value1, &N_value, V_value);
-        //     break;
-        // case MODIFY:
-        //     res = r_modify_value(key, value1, N_value, V_value);
-        //     break;
-        // case DELETE:
-        //     res = r_delete_key(key);
-        //     break;
-        // case EXIST:
-        //     res = r_exist(key);
-        //     break;
-        // default:
-        //     res = -1;
-        //     break;
-    }
+        key = ntohl(key);
+        err = recvMessage(s_local, (char *)&value1, 256);
+        if (err == -1) {
+            printf("Error in reception\n");
+            close(s_local);
+            return;
+        }
+        err = recvMessage(s_local, (char *)&N_value, sizeof(int32_t));
+        N_value = ntohl(N_value);
+        if (err == -1) {
+            printf("Error in reception\n");
+            close(s_local);
+            return;
+        }
+        double* V_value = (double *)malloc(N_value * sizeof(double));
+        for (int i = 0; i < N_value; i++) {
+            double temp;
+            err = recvMessage(s_local, (char *)&temp, sizeof(double));
+            if (err == -1) {
+                printf("Error in reception\n");
+                close(s_local);
+                return;
+            }
+            V_value[i] = temp;
+        }
+        switch (op){
+            case 1:
+                res = r_set_value(key, value1, N_value, V_value);
+                break;
+            // case GET:
+            //     res = r_get_value(key, value1, &N_value, V_value);
+            //     break;
+            // case MODIFY:
+            //     res = r_modify_value(key, value1, N_value, V_value);
+            //     break;
+            // case DELETE:
+            //     res = r_delete_key(key);
+            //     break;
+            // case EXIST:
+            //     res = r_exist(key);
+            //     break;
+            // default:
+            //     res = -1;
+            //     break;
+        }
+        fflush(stdout);
     }
     res = htonl(res);
     err = sendMessage(s_local, (char *)&res, sizeof(int32_t));  // envía el resultado
@@ -282,7 +288,6 @@ int main(int argc, char *argv[])
             pthread_mutex_unlock(&mutex);
         }
     }
-    close(sc);
     close(sd);
     return 0;
 }
