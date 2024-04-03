@@ -4,7 +4,25 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <pthread.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
+#include <netinet/in.h>
+#include "mensajes.h"
 #include "lines.h"
+
+#define PORT 8080
+
+#define MAX_TUPLAS 100 
+
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+int busy = true;
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+
+pthread_mutex_t mutex_tuplas = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_keys = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_archivo = PTHREAD_MUTEX_INITIALIZER;
 
 /*
 #include <stdio.h>
@@ -334,10 +352,90 @@ int main(){
 
 */
 
-void tratar_peticion(int sockfd){
+
+// Definición del vector global para almacenar las tuplas
+Tupla tuplas[MAX_TUPLAS];
+int keys[MAX_TUPLAS]; // Array para almacenar las claves
+int numTuplas = 0; // Variable global para almacenar el número actual de tuplas
+
+// Definición de la variable global para el nombre del archivo
+char filename[FILENAME_MAX];
+
+
+// Función para escribir las tuplas en un archivo de texto
+void escribirTuplas() {
+    pthread_mutex_lock(&mutex_archivo);
+    FILE *fp = fopen(filename, "w");
+    if (fp == NULL) {
+        printf("Error al abrir el archivo para escribir.\n");
+        pthread_mutex_unlock(&mutex_archivo);
+        return;
+    }
+
+    for (int i = 0; i < numTuplas; i++) {
+        fprintf(fp, "%d,%s", tuplas[i].clave, tuplas[i].valor1);
+        for (int j = 0; j < tuplas[i].N; j++) {
+            fprintf(fp, ",%.2f", tuplas[i].vector[j]);
+        }
+        fprintf(fp, "\n");
+    }
+
+    fclose(fp);
+    pthread_mutex_unlock(&mutex_archivo);
+}
+
+// Función para leer las tuplas desde un archivo de texto
+void leerTuplas() {
+    pthread_mutex_lock(&mutex_archivo);
+    FILE *fp = fopen(filename, "r");
+    if (fp == NULL) {
+        printf("Error al abrir el archivo para leer.\n");
+        pthread_mutex_unlock(&mutex_archivo);
+        return;
+    }
+
+    while (!feof(fp) && numTuplas < MAX_TUPLAS) {
+        Tupla t;
+        int result = fscanf(fp, "%d,%[^,],%d", &t.clave, t.valor1, &t.N);
+        if (result == EOF) {
+            break;
+        }
+        t.vector = (double *)malloc(t.N * sizeof(double));
+        for (int i = 0; i < t.N; i++) {
+            fscanf(fp, ",%lf", &t.vector[i]);
+        }
+        pthread_mutex_lock(&mutex_tuplas);
+        pthread_mutex_lock(&mutex_keys);
+        tuplas[numTuplas] = t;
+        keys[numTuplas] = t.clave;
+        numTuplas++;
+        pthread_mutex_unlock(&mutex_keys);
+        pthread_mutex_unlock(&mutex_tuplas);
+    }
+
+    fclose(fp);
+    pthread_mutex_unlock(&mutex_archivo);
+}
+
+int r_init(){   
+    printf("Inicializado\n");
+
+    escribirTuplas();
+    leerTuplas();    
+    return 0;
+}
+
+void tratar_peticion(int * sockfd){
     char op;
-    int32_t a, b, res;
     int err;
+
+    int32_t key, N_value, res;
+    char value1[MAX];
+    
+    pthread_mutex_lock(&mutex);
+    busy = false;
+    pthread_cond_signal(&cond);
+    pthread_mutex_unlock(&mutex);
 
     err = recvMessage(sockfd, (char *)&op, sizeof(char));   // receive the operation
     if (err == -1) {
@@ -345,35 +443,96 @@ void tratar_peticion(int sockfd){
         close(sockfd);
         return;
     }
-    err = recvMessage(sockfd, (char *)&a, sizeof(int32_t)); // receive a
+    err = recvMessage(sockfd, (char *)&key, sizeof(char));
+    if (err == -1) {
+        printf("Error in reception\n");
+        close(sockfd);
+        return;
+    } 
+    err = recvMessage(sockfd, (char *)&value1, sizeof(char)*MAX);
     if (err == -1) {
         printf("Error in reception\n");
         close(sockfd);
         return;
     }
-    err = recvMessage(sockfd, (char *)&b, sizeof(int32_t)); // receive b
+    err = recvMessage(sockfd, (char *)&N_value, sizeof(int));
     if (err == -1) {
         printf("Error in reception\n");
         close(sockfd);
         return;
     }
-    a = ntohl(a);
-    b = ntohl(b);
+    int vector = (double *)malloc(N_value * sizeof(double));
+    err = recvMessage(sockfd, (char *)&vector, sizeof(double)*N_value);
+    if (err == -1) {
+        printf("Error in reception\n");
+        close(sockfd);
+        return;
+    }
+    int r;
+    switch (op){
+        case INIT:
+            r = r_init();
+            break;
+        // case SET:
+        //     r = r_set_value(key, value1, N_value, V_value);
+        //     break;
+        // case GET:
+        //     r = r_get_value(key, value1, &N_value, V_value);
+        //     break;
+        // case MODIFY:
+        //     r = r_modify_value(key, value1, N_value, V_value);
+        //     break;
+        // case DELETE:
+        //     r = r_delete_key(key);
+        //     break;
+        // case EXIST:
+        //     r = r_exist(key);
+        //     break;
+        // default:
+        //     r = -1;
+        //     break;
+    }
+    
+    // if (err == -1) {
+    //     printf("Error in reception\n");
+    //     close(sockfd);
+    //     return;
+    // }
+    // err = recvMessage(sockfd, (char *)&a, sizeof(int32_t)); // receive a
+    // if (err == -1) {
+    //     printf("Error in reception\n");
+    //     close(sockfd);
+    //     return;
+    // }
+    // err = recvMessage(sockfd, (char *)&b, sizeof(int32_t)); // receive b
+    // if (err == -1) {
+    //     printf("Error in reception\n");
+    //     close(sockfd);
+    //     return;
+    // }
+    // a = ntohl(a);
+    // b = ntohl(b);
 
-    if (op == 0) // process the request
-        res = a + b;
-    else
-        res = a - b;
+    // if (op == 0) // process the request
+    //     res = a + b;
+    // else
+    //     res = a - b;
 
+    // res = htonl(res);
+    // err = sendMessage(sockfd, (char *)&res, sizeof(int32_t));  // send the result
+    // if (err == -1) {
+    //     printf("Error in sending\n");
+    //     close(sockfd);
+    //     return;
+    // }
     res = htonl(res);
-    err = sendMessage(sockfd, (char *)&res, sizeof(int32_t));  // send the result
-    if (err == -1) {
-        printf("Error in sending\n");
-        close(sockfd);
-        return;
-    }
-
+    err = sendMessage(sockfd, (char *)&res, sizeof(int32_t));  // envía el resultado
+		if (err == -1) {
+			printf("Error en envi�o\n");
+			close(sockfd);
+		}
     close(sockfd); // close the connection
+    pthread_exit(NULL);
 }
 
 
@@ -384,6 +543,12 @@ int main(int argc, char *argv[])
     int sd, sc;
     int err;
     int op;
+    pthread_t thid;
+    pthread_attr_t attr;
+
+    // Inicializar el atributo
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
 
     // Crear el socket
@@ -394,12 +559,13 @@ int main(int argc, char *argv[])
     }
 
     // Permite que se reuse el socket
-    setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, (char *) &1, sizeof(int));
+    int val = 1;
+    setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, (char *) &val, sizeof(int));
 
     // Inicializar
 	bzero((char *)&server_addr, sizeof(server_addr));
     server_addr.sin_family      = AF_INET;
-    server_addr.sin_port        = htons(4200);
+    server_addr.sin_port        = htons(argv[1]);
     server_addr.sin_addr.s_addr = INADDR_ANY;
 
     // Bind
@@ -428,8 +594,15 @@ int main(int argc, char *argv[])
 			printf("Error en accept\n");
 			return -1;
 		}
+        pthread_create(&thid, &attr, tratar_peticion, (int *)&sc);
 		printf("conexión aceptada de IP: %s   Puerto: %d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port)); 
-
+        while(busy){
+            pthread_cond_wait(&cond, &mutex);
+            busy = true;
+            pthread_mutex_unlock(&mutex);
+        }
+        close(sc);
     }
-    
+    close(sd);
+    return 0;
 }

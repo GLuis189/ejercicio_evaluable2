@@ -10,22 +10,11 @@
 #define DELETE  4
 #define EXIST   5
 
-#define SERVIDOR "/S-100472006"
-
-// peticion
-struct peticion{
-    int op;
-    int key;
-    char value1[MAX];
-    int N_value;
-    double V_value[32];
-    char q_name[MAX];
-};
-
-// // respuesta = (valor. estado)
-// struct respuesta{
-//     int result;
-//     char status;
-// };
+typedef struct{
+    int clave;
+    char valor1[MAX];
+    int N;
+    double *vector;
+}Tupla;
 
 #endif
