@@ -200,11 +200,11 @@ int r_exist(int key){
     for (int i = 0; i < numTuplas; i++) {
         if (keys[i] == key) {
             pthread_mutex_unlock(&mutex_keys);
-            return 1;
+            return 0;
         }
     }
     pthread_mutex_unlock(&mutex_keys);
-    return 0;
+    return -1;
 }
 
 void tratar_peticion(int * sockfd){
@@ -367,7 +367,7 @@ void tratar_peticion(int * sockfd){
         }
 
         res = r_modify_value(key, value1, N_value, V_value);
-        
+
         res = htonl(res);
         err = sendMessage(s_local, (char *)&res, sizeof(int32_t));  // envía el resultado
         if (err == -1) {
