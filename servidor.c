@@ -97,6 +97,7 @@ int r_init(){
     leerTuplas();    
     return 0;
 }
+/*
 
 int r_set_value(int key, char *value1, int N_value, double *V_value){
     printf("Seteado valor\n");
@@ -233,6 +234,256 @@ void tratar_peticion(int * sockfd){
 			printf("Error en envio\n");
 			close(s_local);
 		}
+    close(s_local); // close the connection
+    pthread_exit(NULL);
+}
+
+
+*/
+int r_set_value(int sockfd){
+    printf("Seteado valor\n");
+
+    int err;
+    int32_t key, N_value;
+    char value1[256]; 
+
+    err = recvMessage(sockfd, (char *)&key, sizeof(int32_t));
+    if (err == -1) {
+        printf("Error in reception\n");
+        return -1;
+    }
+    key = ntohl(key);
+
+    err = recvMessage(sockfd, (char *)&value1, 256);
+    if (err == -1) {
+        printf("Error in reception\n");
+        return -1;
+    }
+
+    err = recvMessage(sockfd, (char *)&N_value, sizeof(int32_t));
+    N_value = ntohl(N_value);
+    if (err == -1) {
+        printf("Error in reception\n");
+        return -1;
+    }
+
+    double* V_value = (double *)malloc(N_value * sizeof(double));
+    for (int i = 0; i < N_value; i++) {
+        double temp;
+        err = recvMessage(sockfd, (char *)&temp, sizeof(double));
+        if (err == -1) {
+            printf("Error in reception\n");
+            return -1;
+        }
+        V_value[i] = temp;
+    }
+
+
+    Tupla t;
+    t.clave = key;
+    strcpy(t.valor1, value1);
+    t.N = N_value;
+    t.vector = (double *)malloc(N_value * sizeof(double));
+    for (int i = 0; i < N_value; i++) {
+        t.vector[i] = V_value[i];
+    }
+
+    pthread_mutex_lock(&mutex_tuplas);
+    pthread_mutex_lock(&mutex_keys);
+    for (int i = 0; i < numTuplas; i++) {
+        if (keys[i] == key) {
+            pthread_mutex_unlock(&mutex_keys);
+            pthread_mutex_unlock(&mutex_tuplas);
+            return -1;
+        }
+    }
+    tuplas[numTuplas] = t;
+    keys[numTuplas] = key;
+    numTuplas++;
+    pthread_mutex_unlock(&mutex_keys);
+    pthread_mutex_unlock(&mutex_tuplas);
+
+    escribirTuplas();
+    return 0;
+}
+
+int r_get_value(int sockfd){
+    printf("Obteniendo valor\n");
+
+    int err;
+    int32_t key;
+    char value1[256];
+    int N_value;
+    double *V_value;
+
+    err = recvMessage(sockfd, (char *)&key, sizeof(int32_t));
+    if (err == -1) {
+        printf("Error in reception\n");
+        return -1;
+    }
+    key = ntohl(key);
+
+    pthread_mutex_lock(&mutex_tuplas);
+    pthread_mutex_lock(&mutex_keys);
+    for (int i = 0; i < numTuplas; i++) {
+        if (keys[i] == key) {
+            strcpy(value1, tuplas[i].valor1);
+            N_value = tuplas[i].N;
+            V_value = (double *)malloc(N_value * sizeof(double));
+            if (V_value == NULL) {
+                printf("Error in malloc\n");
+                pthread_mutex_unlock(&mutex_keys);
+                pthread_mutex_unlock(&mutex_tuplas);
+                return -1;
+            }
+            for (int j = 0; j < N_value; j++) {
+                V_value[j] = tuplas[i].vector[j];
+            }
+            pthread_mutex_unlock(&mutex_keys);
+            pthread_mutex_unlock(&mutex_tuplas);
+            break;
+        }
+    }
+    pthread_mutex_unlock(&mutex_keys);
+    pthread_mutex_unlock(&mutex_tuplas);
+
+    err = sendMessage(sockfd, (char *)&value1, 256);
+    if (err == -1) {
+        printf("Error in send\n");
+        return -1;
+    }
+
+    printf("N_value before send: %d\n", N_value);
+    N_value = htonl(N_value);
+    err = sendMessage(sockfd, (char *)&N_value, sizeof(int32_t));
+    if (err == -1) {
+        printf("Error in send\n");
+        return -1;
+    }
+
+    for (int i = 0; i < ntohl(N_value); i++) {
+        err = sendMessage(sockfd, (char *)&V_value[i], sizeof(double));
+        if (err == -1) {
+            printf("Error in send3\n");
+            return -1;
+        }
+    }
+
+    free(V_value);
+    return 0;
+}
+
+int r_modify_value(int sockfd){
+    printf("Modificando valor\n");
+
+    int err;
+    int32_t key, N_value;
+    char value1[256]; 
+
+    err = recvMessage(sockfd, (char *)&key, sizeof(int32_t));
+    if (err == -1) {
+        printf("Error in reception\n");
+        return -1;
+    }
+    key = ntohl(key);
+
+    err = recvMessage(sockfd, (char *)&value1, 256);
+    if (err == -1) {
+        printf("Error in reception\n");
+        return -1;
+    }
+
+    err = recvMessage(sockfd, (char *)&N_value, sizeof(int32_t));
+    N_value = ntohl(N_value);
+    if (err == -1) {
+        printf("Error in reception\n");
+        return -1;
+    }
+
+    double* V_value = (double *)malloc(N_value * sizeof(double));
+    for (int i = 0; i < N_value; i++) {
+        double temp;
+        err = recvMessage(sockfd, (char *)&temp, sizeof(double));
+        if (err == -1) {
+            printf("Error in reception\n");
+            return -1;
+        }
+        V_value[i] = temp;
+    }
+
+    pthread_mutex_lock(&mutex_tuplas);
+    pthread_mutex_lock(&mutex_keys);
+    for (int i = 0; i < numTuplas; i++) {
+        if (keys[i] == key) {
+            strcpy(tuplas[i].valor1, value1);
+            tuplas[i].N = N_value;
+            tuplas[i].vector = (double *)malloc(N_value * sizeof(double));
+            for (int j = 0; j < N_value; j++) {
+                tuplas[i].vector[j] = V_value[j];
+            }
+            pthread_mutex_unlock(&mutex_keys);
+            pthread_mutex_unlock(&mutex_tuplas);
+            escribirTuplas();
+            return 0;
+        }
+    }
+    pthread_mutex_unlock(&mutex_keys);
+    pthread_mutex_unlock(&mutex_tuplas);
+
+    return -1;
+}
+
+
+void tratar_peticion(int * sockfd){
+    char op;
+    int err;
+    int s_local;
+
+    pthread_mutex_lock(&mutex);
+    s_local = (* (int *)sockfd);
+    busy = false;
+    pthread_cond_signal(&cond);
+    pthread_mutex_unlock(&mutex);
+
+    err = recvMessage(s_local, (char *) &op, sizeof(char));  // recibe la operacion
+    if (err == -1) {
+        printf("Error in reception op\n");
+        close(s_local);
+        return;
+    }
+    printf("Operación: %d\n", op);
+
+    int32_t res;
+    switch (op){
+        case 0:
+            res = r_init();
+            break;
+        case 1:
+            res = r_set_value(s_local);
+            break;
+        case GET:
+            res = r_get_value(s_local);
+            break;
+        case MODIFY:
+            res = r_modify_value(s_local);
+            break;
+        /*case DELETE:
+            res = r_delete_key(s_local);
+            break;
+        case EXIST:
+            res = r_exist(s_local);
+            break;
+        default:
+            printf("Operación no válida\n");
+            close(s_local);
+            return;*/
+    }
+
+    res = htonl(res);
+    err = sendMessage(s_local, (char *)&res, sizeof(int32_t));  // envía el resultado
+    if (err == -1) {
+        printf("Error en envio\n");
+    }
     close(s_local); // close the connection
     pthread_exit(NULL);
 }

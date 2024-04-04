@@ -110,12 +110,14 @@ int set_value(int key, char *value, int N_value, double *V_value){
         printf("Error en envio value\n");
         return -1;
     };
+    printf("hola");
     N_value = htonl((int32_t)N_value);
     err = sendMessage(sd, (char *) &N_value, sizeof(int32_t));  // envía la dimensión del vector
     if (err == -1){
         printf("Error en envio N\n");
         return -1;
     };
+    printf("FOR");
     for (int i = 0; i < ntohl(N_value); i++) {
         err = sendMessage(sd, (char *)&V_value[i], sizeof(double));
         if (err == -1){
@@ -123,7 +125,7 @@ int set_value(int key, char *value, int N_value, double *V_value){
             return -1;
         }
     }
-
+    printf("REcive");
     err = recvMessage(sd, (char *) &res, sizeof(int32_t));     // recibe la respuesta
     if (err == -1){
         printf("Error en recepcion\n");
@@ -206,3 +208,72 @@ int get_value(int key, char *value, int *N_value, double *V_value){
     return res;
 }
 
+int modify_value(int key, char *value, int N_value, double *V_value){
+    printf("Modificando valor\n");
+    int sd;
+    struct sockaddr_in server_addr;
+    struct hostent *hp;
+    char op;
+    int err;
+    int32_t res;
+    sd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sd == -1) {
+        perror("socket");
+        return -1;
+    }
+    bzero((char *)&server_addr, sizeof(server_addr));
+    hp = gethostbyname(getenv("IP_TUPLAS"));
+    if (hp == NULL) {
+        printf("Error en gethostbyname\n");
+        return -1;
+    };
+    int port = atoi(getenv("PORT_TUPLAS"));
+    memcpy(&(server_addr.sin_addr), hp->h_addr_list[0], hp->h_length);
+    server_addr.sin_family  = AF_INET;
+    server_addr.sin_port    = htons(port);
+
+    // se establece la conexión
+    err = connect(sd, (struct sockaddr *) &server_addr,  sizeof(server_addr));
+    if (err == -1) {
+        printf("Error en connect modify\n");
+        return -1;
+    }
+
+    op = 3;
+    printf("Operacion %d\n", op);
+    err = sendMessage(sd, (char *) &op, sizeof(char));  // envía la operacion
+    if (err == -1){
+        printf("Error en envio modify\n");
+        return -1;
+    };
+    key = htonl((int32_t)key);
+    err = sendMessage(sd, (char *) &key, sizeof(int32_t));  // envía la clave
+    if (err == -1){
+        printf("Error en envio key\n");
+        return -1;
+    };
+    err = sendMessage(sd, value, 256);  // envía el valor 1
+    if (err == -1){
+        printf("Error en envio value\n");
+        return -1;
+    };
+    printf("N_value before send: %d\n", N_value); // Imprime N_value antes de enviar
+    N_value = htonl((int32_t)N_value);
+    err = sendMessage(sd, (char *) &N_value, sizeof(int32_t));  // envía la dimensión del vector
+    if (err == -1){
+        printf("Error en envio N\n");
+        return -1;
+    };
+    for (int i = 0; i < ntohl(N_value); i++) {
+        err = sendMessage(sd, (char *)&V_value[i], sizeof(double));
+        if (err == -1){
+            printf("Error en envio %d \n", i);
+            return -1;
+        }
+    }
+    close(sd);
+    return res;
+}
+
+    

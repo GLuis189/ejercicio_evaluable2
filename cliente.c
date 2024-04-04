@@ -30,13 +30,13 @@ int main(){
         }
     }
     free(v_value_2);
-    // char value_3[256] = "nuevo valor";
-    // double v_value_4[32] = {4.0, 5.0, 6.0, 7.0};
-//     if(modify_value(2, value_3, n, v_value_4) == 0){
-//         printf("Valor modificado con éxito.\n");
-//     } else {
-//         printf("Error al modificar el valor.\n");
-//     }
+    char value_3[256] = "nuevo valor";
+    double v_value_4[32] = {4.0, 5.0, 6.0, 7.0};
+    if(modify_value(2, value_3, n, v_value_4) == 0){
+        printf("Valor modificado con éxito.\n");
+    } else {
+        printf("Error al modificar el valor.\n");
+    }
 //     if(get_value(2, value_1, &n, v_value_2) == 0){
 //         printf("Valor obtenido %s \n", value_1);
 //         for (int i = 0; i < n; i++){ 
