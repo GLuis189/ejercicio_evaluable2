@@ -97,7 +97,6 @@ int r_init(){
     leerTuplas();    
     return 0;
 }
-/*
 
 int r_set_value(int key, char *value1, int N_value, double *V_value){
     printf("Seteado valor\n");
@@ -150,6 +149,64 @@ int r_get_value(int key, char *value1, int *N_value, double *V_value){
     return -1;
 }
 
+int r_modify_value(int key, char *value1, int N_value, double *V_value){
+    printf("Modificando valor\n");
+    pthread_mutex_lock(&mutex_tuplas);
+    pthread_mutex_lock(&mutex_keys);
+    for (int i = 0; i < numTuplas; i++) {
+        if (keys[i] == key) {
+            strcpy(tuplas[i].valor1, value1);
+            tuplas[i].N = N_value;
+            tuplas[i].vector = (double *)malloc(N_value * sizeof(double));
+            for (int j = 0; j < N_value; j++) {
+                tuplas[i].vector[j] = V_value[j];
+            }
+            pthread_mutex_unlock(&mutex_keys);
+            pthread_mutex_unlock(&mutex_tuplas);
+            escribirTuplas();
+            return 0;
+        }
+    }
+    pthread_mutex_unlock(&mutex_keys);
+    pthread_mutex_unlock(&mutex_tuplas);
+    return -1;
+}
+
+int r_delete_key(int key){
+    printf("Borrando clave\n");
+    pthread_mutex_lock(&mutex_tuplas);
+    pthread_mutex_lock(&mutex_keys);
+    for (int i = 0; i < numTuplas; i++) {
+        if (keys[i] == key) {
+            for (int j = i; j < numTuplas - 1; j++) {
+                tuplas[j] = tuplas[j + 1];
+                keys[j] = keys[j + 1];
+            }
+            numTuplas--;
+            pthread_mutex_unlock(&mutex_keys);
+            pthread_mutex_unlock(&mutex_tuplas);
+            escribirTuplas();
+            return 0;
+        }
+    }
+    pthread_mutex_unlock(&mutex_keys);
+    pthread_mutex_unlock(&mutex_tuplas);
+    return -1;
+}
+
+int r_exist(int key){
+    printf("Comprobando existencia\n");
+    pthread_mutex_lock(&mutex_keys);
+    for (int i = 0; i < numTuplas; i++) {
+        if (keys[i] == key) {
+            pthread_mutex_unlock(&mutex_keys);
+            return 1;
+        }
+    }
+    pthread_mutex_unlock(&mutex_keys);
+    return 0;
+}
+
 void tratar_peticion(int * sockfd){
     char op;
     int err;
@@ -172,9 +229,20 @@ void tratar_peticion(int * sockfd){
     }
     printf("Operación: %d\n", op);
     if (op == 0){
+        // INIT
+
         res = r_init();
+
+        res = htonl(res);
+        err = sendMessage(s_local, (char *)&res, sizeof(int32_t));  // envía el resultado
+        if (err == -1) {
+            printf("Error en envio\n");
+            close(s_local);
+        }
     }
-    else{
+    else if (op == 1)
+    {
+        // SET
         err = recvMessage(s_local, (char *)&key, sizeof(int32_t));
         if (err == -1) {
             printf("Error in reception\n");
@@ -202,44 +270,164 @@ void tratar_peticion(int * sockfd){
             if (err == -1) {
                 printf("Error in reception\n");
                 close(s_local);
+                free(V_value);
                 return;
             }
             V_value[i] = temp;
         }
-        switch (op){
-            case 1:
-                res = r_set_value(key, value1, N_value, V_value);
-                break;
-            case GET:
-                res = r_get_value(key, value1, &N_value, V_value);
-                break;
-            // case MODIFY:
-            //     res = r_modify_value(key, value1, N_value, V_value);
-            //     break;
-            // case DELETE:
-            //     res = r_delete_key(key);
-            //     break;
-            // case EXIST:
-            //     res = r_exist(key);
-            //     break;
-            // default:
-            //     res = -1;
-            //     break;
+
+        res = r_set_value(key, value1, N_value, V_value);
+        res = htonl(res);
+        err = sendMessage(s_local, (char *)&res, sizeof(int32_t));  // envía el resultado
+        if (err == -1) {
+            printf("Error en envio\n");
+            close(s_local);
         }
-        fflush(stdout);
     }
-    res = htonl(res);
-    err = sendMessage(s_local, (char *)&res, sizeof(int32_t));  // envía el resultado
-		if (err == -1) {
-			printf("Error en envio\n");
-			close(s_local);
-		}
+    else if (op == 2){
+        // GET
+        err = recvMessage(s_local, (char *)&key, sizeof(int32_t));
+        if (err == -1) {
+            printf("Error in reception\n");
+            close(s_local);
+            return;
+        }
+        key = ntohl(key);
+
+        char value1[256];
+        int32_t N_value, res;
+        double *V_value = (double *)malloc(N_value * sizeof(double));
+        
+        res = r_get_value(key, value1, &N_value, V_value);
+        
+        res = htonl(res);
+        err = sendMessage(s_local, (char *)&res, sizeof(int32_t));  // envía el resultado
+
+        if (ntohl(res) == 0){
+            err = sendMessage(s_local, (char *)&value1, 256);
+            if (err == -1) {
+                printf("Error in reception\n");
+                close(s_local);
+                return;
+            }
+            N_value = htonl(N_value);
+            err = sendMessage(s_local, (char *)&N_value, sizeof(int32_t));
+            if (err == -1) {
+                printf("Error in reception\n");
+                close(s_local);
+                return;
+            }
+            for (int i = 0; i < N_value; i++) {
+                err = sendMessage(s_local, (char *)&V_value[i], sizeof(double));
+                if (err == -1) {
+                    printf("Error in reception\n");
+                    close(s_local);
+                    free(V_value);
+                    return;
+                }
+            }
+        }
+    }
+    else if (op == 3){
+        // MODIFY
+        err = recvMessage(s_local, (char *)&key, sizeof(int32_t));
+        if (err == -1) {
+            printf("Error in reception\n");
+            close(s_local);
+            return;
+        }
+        key = ntohl(key);
+
+        err = recvMessage(s_local, (char *)&value1, 256);
+        if (err == -1) {
+            printf("Error in reception\n");
+            close(s_local);
+            return;
+        }
+
+        err = recvMessage(s_local, (char *)&N_value, sizeof(int32_t));
+        N_value = ntohl(N_value);
+        if (err == -1) {
+            printf("Error in reception\n");
+            close(s_local);
+            return;
+        }
+
+        double* V_value = (double *)malloc(N_value * sizeof(double));
+        for (int i = 0; i < N_value; i++) {
+            double temp;
+            err = recvMessage(s_local, (char *)&temp, sizeof(double));
+            if (err == -1) {
+                printf("Error in reception\n");
+                close(s_local);
+                free(V_value);
+                return;
+            }
+            V_value[i] = temp;
+        }
+
+        res = r_modify_value(key, value1, N_value, V_value);
+        
+        res = htonl(res);
+        err = sendMessage(s_local, (char *)&res, sizeof(int32_t));  // envía el resultado
+        if (err == -1) {
+            printf("Error en envio\n");
+            close(s_local);
+            return;
+        }
+    }
+    else if (op == 4){
+        // DELETE
+        err = recvMessage(s_local, (char *)&key, sizeof(int32_t));
+        if (err == -1) {
+            printf("Error in reception\n");
+            close(s_local);
+            return;
+        }
+        key = ntohl(key);
+
+        res = r_delete_key(key);
+        res = htonl(res);
+        err = sendMessage(s_local, (char *)&res, sizeof(int32_t));  // envía el resultado
+        if (err == -1) {
+            printf("Error en envio\n");
+            close(s_local);
+            return;
+        }
+    }
+    else if (op == 5){
+        // EXIST
+        err = recvMessage(s_local, (char *)&key, sizeof(int32_t));
+        if (err == -1) {
+            printf("Error in reception\n");
+            close(s_local);
+            return;
+        }
+        key = ntohl(key);
+
+        res = r_exist(key);
+        res = htonl(res);
+        err = sendMessage(s_local, (char *)&res, sizeof(int32_t));  // envía el resultado
+        if (err == -1) {
+            printf("Error en envio\n");
+            close(s_local);
+            return;
+        }
+    }
+    else{
+        printf("Operación no válida\n");
+        close(s_local);
+        return;
+    }
+    fflush(stdout);
+    
     close(s_local); // close the connection
     pthread_exit(NULL);
 }
 
 
-*/
+
+/*
 int r_set_value(int sockfd){
     printf("Seteado valor\n");
 
@@ -476,7 +664,7 @@ void tratar_peticion(int * sockfd){
         default:
             printf("Operación no válida\n");
             close(s_local);
-            return;*/
+            return;
     }
 
     res = htonl(res);
@@ -487,7 +675,7 @@ void tratar_peticion(int * sockfd){
     close(s_local); // close the connection
     pthread_exit(NULL);
 }
-
+*/
 
 int main(int argc, char *argv[])
 {

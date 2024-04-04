@@ -65,7 +65,7 @@ int get_value(int key, char *value1, int *N_value2, double *V_value2);
  * @retval 0 si se modificó con éxito.
  * @retval -1 en caso de error.
  */
-// int modify_value(int key, char *value1, int N_value2, double *V_value2);
+int modify_value(int key, char *value1, int N_value2, double *V_value2);
 
 /**
  * @brief Este servicio permite borrar el elemento cuya clave es key. La
@@ -77,7 +77,7 @@ int get_value(int key, char *value1, int *N_value2, double *V_value2);
  * @retval 0 en caso de éxito.
  * @retval -1 en caso de error.
  */
-// int delete_key(int key);
+int delete_key(int key);
 
 /**
  * @brief Este servicio permite determinar si existe un elemento con clave key.
@@ -91,6 +91,6 @@ int get_value(int key, char *value1, int *N_value2, double *V_value2);
  * @retval 0 en caso de que no exista.
  * @retval -1 en caso de error.
  */
-// int exist(int key);
+int exist(int key);
 
 #endif
