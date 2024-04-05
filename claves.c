@@ -174,8 +174,9 @@ int get_value(int key, char *value, int *N_value, double *V_value){
         printf("Error en envio get\n");
         return -1;
     };
-    key = htonl((int32_t)key);
-    err = sendMessage(sd, (char *) &key, sizeof(int32_t));  // envía la clave
+    int32_t key32 = (int32_t)key;
+    key32 = htonl(key32);
+    err = sendMessage(sd, (char *) &key32, sizeof(int32_t));  // envía la clave
     if (err == -1){
         printf("Error en envio key\n");
         return -1;
@@ -246,8 +247,9 @@ int modify_value(int key, char *value, int N_value, double *V_value){
         printf("Error en envio modify\n");
         return -1;
     };
-    key = htonl((int32_t)key);
-    err = sendMessage(sd, (char *) &key, sizeof(int32_t));  // envía la clave
+    int32_t key32 = (int32_t)key;
+    key32 = htonl(key32);
+    err = sendMessage(sd, (char *) &key32, sizeof(int32_t));  // envía la clave
     if (err == -1){
         printf("Error en envio key\n");
         return -1;
@@ -319,7 +321,8 @@ int delete_key(int key){
         printf("Error en envio delete\n");
         return -1;
     };
-    key = htonl((int32_t)key);
+    int32_t key32 = (int32_t)key;
+    key32 = htonl(key32);
     err = sendMessage(sd, (char *) &key, sizeof(int32_t));  // envía la clave
     if (err == -1){
         printf("Error en envio key\n");
@@ -373,7 +376,8 @@ int exist(int key){
         printf("Error en envio exist\n");
         return -1;
     };
-    key = htonl((int32_t)key);
+    int32_t key32 = (int32_t)key;
+    key32 = htonl(key32);
     err = sendMessage(sd, (char *) &key, sizeof(int32_t));  // envía la clave
     if (err == -1){
         printf("Error en envio key\n");
