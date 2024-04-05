@@ -1,4 +1,4 @@
-// Código del cliente - nada de colas y funciones como si fuesen locales
+// Código del cliente
 
 #include <stdio.h>
 #include <stdlib.h>
