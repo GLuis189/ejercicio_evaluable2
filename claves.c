@@ -18,7 +18,7 @@ int init(){
     struct hostent *hp;
 	char op;
     int err;
-    int res;
+    int32_t res;
     sd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sd == -1) {

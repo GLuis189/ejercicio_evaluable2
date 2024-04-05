@@ -234,6 +234,7 @@ void tratar_peticion(int * sockfd){
         res = r_init();
 
         res = htonl(res);
+        
         err = sendMessage(s_local, (char *)&res, sizeof(int32_t));  // envía el resultado
         if (err == -1) {
             printf("Error en envio\n");
