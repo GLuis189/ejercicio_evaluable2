@@ -208,11 +208,10 @@ int r_exist(int key){
 }
 
 void tratar_peticion(int * sockfd){
-    char op;
     int err;
     int s_local;
 
-    int32_t key, N_value, res;
+    int32_t op, key, N_value, res;
     char value1[256]; 
     
     pthread_mutex_lock(&mutex);
@@ -221,12 +220,14 @@ void tratar_peticion(int * sockfd){
     pthread_cond_signal(&cond);
     pthread_mutex_unlock(&mutex);
 
-    err = recvMessage(s_local, (char *) &op, sizeof(char));  // envía la operacion
+    err = recvMessage(s_local, (char *) &op, sizeof(int32_t));  // envía la operacion
     if (err == -1) {
         printf("Error in reception op\n");
         close(s_local);
         return;
     }
+    printf("Operación: %d\n", op);
+    op = ntohl(op);
     printf("Operación: %d\n", op);
     if (op == 0){
         // INIT

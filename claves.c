@@ -16,7 +16,7 @@ int init(){
     int sd;
     struct sockaddr_in server_addr;
     struct hostent *hp;
-	char op;
+	int32_t op;
     int err;
     int32_t res;
     sd = socket(AF_INET, SOCK_STREAM, 0);
@@ -44,7 +44,8 @@ int init(){
 	}
     op = 0;
     printf("Operacion %d\n", op);
-    err = sendMessage(sd, (char *) &op, sizeof(char));  // envía la operacion
+    op = htonl(op);
+    err = sendMessage(sd, (char *) &op, sizeof(int32_t));  // envía la operacion
 	if (err == -1){
 		printf("Error en envio init\n");
 		return -1;
@@ -64,7 +65,7 @@ int set_value(int key, char *value, int N_value, double *V_value){
     int sd;
     struct sockaddr_in server_addr;
     struct hostent *hp;
-    char op;
+    int32_t op;
     int err;
     int32_t res;
     sd = socket(AF_INET, SOCK_STREAM, 0);
@@ -90,10 +91,10 @@ int set_value(int key, char *value, int N_value, double *V_value){
         printf("Error en connect set\n");
         return -1;
     }
-
     op = 1;
     printf("Operacion %d\n", op);
-    err = sendMessage(sd, (char *) &op, sizeof(char));  // envía la operacion
+    op = htonl(op);
+    err = sendMessage(sd, (char *) &op, sizeof(int32_t));  // envía la operacion
     if (err == -1){
         printf("Error en envio set\n");
         return -1;
@@ -141,7 +142,7 @@ int get_value(int key, char *value, int *N_value, double *V_value){
     int sd;
     struct sockaddr_in server_addr;
     struct hostent *hp;
-    char op;
+    int32_t op;
     int err;
     int32_t res;
     sd = socket(AF_INET, SOCK_STREAM, 0);
@@ -170,7 +171,8 @@ int get_value(int key, char *value, int *N_value, double *V_value){
 
     op = 2;
     printf("Operacion %d\n", op);
-    err = sendMessage(sd, (char *) &op, sizeof(char));  // envía la operacion
+    op = htonl(op);
+    err = sendMessage(sd, (char *) &op, sizeof(int32_t));  // envía la operacion
     if (err == -1){
         printf("Error en envio get\n");
         return -1;
@@ -214,7 +216,7 @@ int modify_value(int key, char *value, int N_value, double *V_value){
     int sd;
     struct sockaddr_in server_addr;
     struct hostent *hp;
-    char op;
+    int32_t op;
     int err;
     int32_t res;
     sd = socket(AF_INET, SOCK_STREAM, 0);
@@ -243,7 +245,8 @@ int modify_value(int key, char *value, int N_value, double *V_value){
 
     op = 3;
     printf("Operacion %d\n", op);
-    err = sendMessage(sd, (char *) &op, sizeof(char));  // envía la operacion
+    op = htonl(op);
+    err = sendMessage(sd, (char *) &op, sizeof(int32_t));  // envía la operacion
     if (err == -1){
         printf("Error en envio modify\n");
         return -1;
@@ -288,7 +291,7 @@ int delete_key(int key){
     int sd;
     struct sockaddr_in server_addr;
     struct hostent *hp;
-    char op;
+    int32_t op;
     int err;
     int32_t res;
     sd = socket(AF_INET, SOCK_STREAM, 0);
@@ -317,7 +320,8 @@ int delete_key(int key){
 
     op = 4;
     printf("Operacion %d\n", op);
-    err = sendMessage(sd, (char *) &op, sizeof(char));  // envía la operacion
+    op = htonl(op);
+    err = sendMessage(sd, (char *) &op, sizeof(int32_t));  // envía la operacion
     if (err == -1){
         printf("Error en envio delete\n");
         return -1;
@@ -343,7 +347,7 @@ int exist(int key){
     int sd;
     struct sockaddr_in server_addr;
     struct hostent *hp;
-    char op;
+    int32_t op;
     int err;
     int32_t res;
     sd = socket(AF_INET, SOCK_STREAM, 0);
@@ -372,7 +376,8 @@ int exist(int key){
 
     op = 5;
     printf("Operacion %d\n", op);
-    err = sendMessage(sd, (char *) &op, sizeof(char));  // envía la operacion
+    op = htonl(op);
+    err = sendMessage(sd, (char *) &op, sizeof(int32_t));  // envía la operacion
     if (err == -1){
         printf("Error en envio exist\n");
         return -1;
