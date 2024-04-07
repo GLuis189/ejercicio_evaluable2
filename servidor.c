@@ -207,7 +207,8 @@ int r_exist(int key){
     return -1;
 }
 
-void tratar_peticion(int * sockfd){
+void *tratar_peticion(void * sockfd){
+    int *sockfd_int = (int *)sockfd;
     int err;
     int s_local;
 
@@ -215,7 +216,7 @@ void tratar_peticion(int * sockfd){
     char value1[256]; 
     
     pthread_mutex_lock(&mutex);
-    s_local = (* (int *)sockfd);
+    s_local = (*sockfd_int);
     busy = false;
     pthread_cond_signal(&cond);
     pthread_mutex_unlock(&mutex);
@@ -224,7 +225,7 @@ void tratar_peticion(int * sockfd){
     if (err == -1) {
         printf("Error in reception op\n");
         close(s_local);
-        return;
+        return NULL;
     }
     printf("Operación: %d\n", op);
     op = ntohl(op);
@@ -240,6 +241,7 @@ void tratar_peticion(int * sockfd){
         if (err == -1) {
             printf("Error en envio\n");
             close(s_local);
+            return NULL;
         }
     }
     else if (op == 1)
@@ -249,21 +251,21 @@ void tratar_peticion(int * sockfd){
         if (err == -1) {
             printf("Error in reception\n");
             close(s_local);
-            return;
+            return NULL;
         }
         key = ntohl(key);
         err = recvMessage(s_local, (char *)&value1, 256);
         if (err == -1) {
             printf("Error in reception\n");
             close(s_local);
-            return;
+            return NULL;
         }
         err = recvMessage(s_local, (char *)&N_value, sizeof(int32_t));
         N_value = ntohl(N_value);
         if (err == -1) {
             printf("Error in reception\n");
             close(s_local);
-            return;
+            return NULL;
         }
         double* V_value = (double *)malloc(N_value * sizeof(double));
         for (int i = 0; i < N_value; i++) {
@@ -273,7 +275,7 @@ void tratar_peticion(int * sockfd){
                 printf("Error in reception\n");
                 close(s_local);
                 free(V_value);
-                return;
+                return NULL;
             }
             V_value[i] = temp;
         }
@@ -284,6 +286,7 @@ void tratar_peticion(int * sockfd){
         if (err == -1) {
             printf("Error en envio\n");
             close(s_local);
+            return NULL;
         }
     }
     else if (op == 2){
@@ -292,7 +295,7 @@ void tratar_peticion(int * sockfd){
         if (err == -1) {
             printf("Error in reception\n");
             close(s_local);
-            return;
+            return NULL;
         }
         key = ntohl(key);
 
@@ -310,14 +313,14 @@ void tratar_peticion(int * sockfd){
             if (err == -1) {
                 printf("Error in reception\n");
                 close(s_local);
-                return;
+                return NULL;
             }
             N_value = htonl(N_value);
             err = sendMessage(s_local, (char *)&N_value, sizeof(int32_t));
             if (err == -1) {
                 printf("Error in reception\n");
                 close(s_local);
-                return;
+                return NULL;
             }
             for (int i = 0; i < N_value; i++) {
                 err = sendMessage(s_local, (char *)&V_value[i], sizeof(double));
@@ -325,7 +328,7 @@ void tratar_peticion(int * sockfd){
                     printf("Error in reception\n");
                     close(s_local);
                     free(V_value);
-                    return;
+                    return NULL;
                 }
             }
         }
@@ -336,7 +339,7 @@ void tratar_peticion(int * sockfd){
         if (err == -1) {
             printf("Error in reception\n");
             close(s_local);
-            return;
+            return NULL;
         }
         key = ntohl(key);
 
@@ -344,7 +347,7 @@ void tratar_peticion(int * sockfd){
         if (err == -1) {
             printf("Error in reception\n");
             close(s_local);
-            return;
+            return NULL;
         }
 
         err = recvMessage(s_local, (char *)&N_value, sizeof(int32_t));
@@ -352,7 +355,7 @@ void tratar_peticion(int * sockfd){
         if (err == -1) {
             printf("Error in reception\n");
             close(s_local);
-            return;
+            return NULL;
         }
 
         double* V_value = (double *)malloc(N_value * sizeof(double));
@@ -363,7 +366,7 @@ void tratar_peticion(int * sockfd){
                 printf("Error in reception\n");
                 close(s_local);
                 free(V_value);
-                return;
+                return NULL; 
             }
             V_value[i] = temp;
         }
@@ -374,7 +377,7 @@ void tratar_peticion(int * sockfd){
         if (err == -1) {
             printf("Error en envio\n");
             close(s_local);
-            return;
+            return NULL;
         }
     }
     else if (op == 4){
@@ -383,7 +386,7 @@ void tratar_peticion(int * sockfd){
         if (err == -1) {
             printf("Error in reception\n");
             close(s_local);
-            return;
+            return NULL;
         }
         key = ntohl(key);
 
@@ -393,7 +396,7 @@ void tratar_peticion(int * sockfd){
         if (err == -1) {
             printf("Error en envio\n");
             close(s_local);
-            return;
+            return NULL; 
         }
     }
     else if (op == 5){
@@ -402,7 +405,7 @@ void tratar_peticion(int * sockfd){
         if (err == -1) {
             printf("Error in reception\n");
             close(s_local);
-            return;
+            return NULL;
         }
         key = ntohl(key);
 
@@ -412,19 +415,20 @@ void tratar_peticion(int * sockfd){
         if (err == -1) {
             printf("Error en envio\n");
             close(s_local);
-            return;
+            return NULL;
         }
     }
     else{
         printf("Operación no válida\n");
         close(s_local);
-        return;
+        return NULL;
     }
     fflush(stdout);
     
     close(s_local); // close the connection
     pthread_exit(NULL);
 }
+
 
 
 int main(int argc, char *argv[])
@@ -490,7 +494,8 @@ int main(int argc, char *argv[])
 			printf("Error en accept\n");
 			return -1;
 		}
-        pthread_create(&thid, &attr, tratar_peticion, (int *)&sc);
+        pthread_create(&thid, &attr, tratar_peticion, (void *)&sc);
+
 		printf("conexión aceptada de IP: %s   Puerto: %d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port)); 
         while(busy){
             pthread_cond_wait(&cond, &mutex);
