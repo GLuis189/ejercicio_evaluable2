@@ -25,7 +25,7 @@ servidor: servidor.o libclaves.so
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 # Regla para compilar archivos fuente a objetos
-%.o: %.c mensajes.h
+%.o: %.c 
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
 
 # Regla para crear la biblioteca compartida libclaves.so

@@ -9,10 +9,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include <netinet/in.h>
-#include "mensajes.h"
 #include "lines.h"
 
 #define MAX_TUPLAS 100
+#define MAX	256
+
+typedef struct{
+    int clave;
+    char valor1[MAX];
+    int N;
+    double *vector;
+}Tupla;
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 int busy = true;
