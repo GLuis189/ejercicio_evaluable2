@@ -1,2 +1,0 @@
-2,nuevo valor
-2,nuevo valor,0.00,0.00,6.00,7.00
